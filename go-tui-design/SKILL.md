@@ -1,3 +1,8 @@
+---
+name: go-tui-design
+description: Create distinctive, production-grade Go terminal UIs with Bubbletea, Lipgloss, and Bubbles. Use when building TUI apps, CLI tools, interactive sidebars, dashboards, or any terminal interface in Go.
+---
+
 # Go TUI Design
 
 Create distinctive, production-grade terminal user interfaces in Go using the Charmbracelet ecosystem (Bubbletea, Lipgloss, Bubbles). This skill covers both visual design craft and architectural patterns for building polished, maintainable TUI applications.
