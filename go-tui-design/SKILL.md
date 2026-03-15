@@ -605,6 +605,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 - **Layout arithmetic off by one**: Borders add 2 to width/height. Padding adds to both sides. Always account for chrome.
 - **Forgotten nil checks**: `tea.WindowSizeMsg` arrives after `Init()`. Guard against zero width/height in `View()`.
 - **Panics in commands**: Don't crash the terminal. Wrap command functions with recover, or return `errMsg`.
+- **Circular rendering in chrome measurement**: Never call `lipgloss.Height(m.renderHeader())` inside a function that `renderHeader()` also depends on — this can cause runaway memory allocation and SIGKILL (OOM). Use fixed constants for chrome height instead.
+- **Viewport initialization timing**: The viewport is not ready until the first `tea.WindowSizeMsg`. Guard all `viewport.SetContent()` calls behind a `ready` flag. Return empty string from `View()` if not ready.
+
+### tmux Integration
+
+When building TUI apps that run inside tmux panes:
+
+- **Don't use shell wrappers**: `sh -c "cmd1; cmd2"` breaks TTY control. Bubbletea needs direct TTY access. Run the TUI binary directly in `split-window`, then use separate tmux commands for setup (like setting pane titles).
+- **Pane detection**: Don't use `pgrep -f` to find TUI panes — it's fragile and can match the wrong process (including the caller). Use `tmux select-pane -T <title>` to tag panes, then detect with `list-panes -F '#{pane_title}'`.
+- **"No space for new pane"**: tmux refuses splits when the target pane is too narrow. Consider targeting the largest pane explicitly, or gracefully handle this error.
+- **Alt-screen cleanup**: Always use `tea.WithAltScreen()` so the TUI cleans up properly when the pane is killed externally.
 
 ---
 
