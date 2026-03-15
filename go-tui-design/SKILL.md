@@ -326,6 +326,13 @@ colorNordNight = lipgloss.Color("#2e3440")
 colorNeon      = lipgloss.Color("#ff00ff")
 colorCyan      = lipgloss.Color("#00ffff")
 colorDeepBg    = lipgloss.Color("#1a0a2e")
+
+// Agent status (semantic, warm/cool contrast)
+colorWaiting   = lipgloss.Color("#d7875f") // warm amber — needs attention
+colorWorking   = lipgloss.Color("#5f87af") // steel blue — in progress
+colorDone      = lipgloss.Color("#5faf5f") // soft green — complete
+colorMuted     = lipgloss.Color("#585858") // dim gray — secondary info
+colorBright    = lipgloss.Color("#e4e4e4") // near white — emphasis
 ```
 
 ---
@@ -423,11 +430,31 @@ Use sparingly. A single distinctive element (a custom bullet, a unique divider) 
 
 Visual design only matters if the interaction is solid. These patterns make or break a TUI.
 
+### Popup / Launcher Pattern
+
+For ephemeral UIs (switchers, pickers, command palettes), use `tmux display-popup` instead of persistent panes:
+
+- **Size to content**: Don't use 100% width/height. 40-50% is usually right for a launcher.
+- **Two-line cards**: Name + status on line 1, path/detail indented below. Gives breathing room without wasting space.
+- **Auto-dismiss**: Quit on action (Enter to select, then `tea.Quit`). The popup is a verb, not a noun.
+- **Vim command mode**: Support `:q` for muscle-memory users. Simple state machine: `cmdMode` bool + `cmdBuf` string.
+- **Summary bar**: Show aggregate status at the top with a separator — lets users glance without scanning every entry.
+
+```go
+// Popup from Go — called by a tmux keybind
+tmux.Run("display-popup", "-E",
+    "-w", "45%", "-h", "40%",
+    "-b", "rounded",
+    "-S", "fg=#c0c0c0",
+    "-T", " ⬡ title ",
+    "myapp", "popup")
+```
+
 ### Cursor & Selection
 
-Always make two things visually distinct:
-1. **Where the cursor is** (navigating) — background highlight, `▸` prefix
-2. **What is currently active** (selected/current) — bold text, accent color
+Always make two things visually distinct — use **different symbols and different colors**:
+1. **Where the cursor is** (navigating) — `❯` prefix in bright white
+2. **What is currently active** (selected/current) — `◆` prefix in accent color
 
 ```go
 if isCursor {
@@ -610,12 +637,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 ### tmux Integration
 
-When building TUI apps that run inside tmux panes:
+When building TUI apps that run inside tmux panes or popups:
 
-- **Don't use shell wrappers**: `sh -c "cmd1; cmd2"` breaks TTY control. Bubbletea needs direct TTY access. Run the TUI binary directly in `split-window`, then use separate tmux commands for setup (like setting pane titles).
+- **Prefer `display-popup` over `split-window`** for ephemeral UIs (switchers, launchers, pickers). Popups float over panes, don't steal screen real estate, and auto-close with `-E` when the command exits. Use `split-window` only for persistent panels.
+- **`display-popup` styling**: Use `-b rounded` for modern borders, `-S "fg=#color"` for border/title color (note: title and border share the same style), `-T " title "` with padding for a clean look.
+- **Don't use shell wrappers**: `sh -c "cmd1; cmd2"` breaks TTY control. Bubbletea needs direct TTY access. Run the TUI binary directly in `split-window` or `display-popup`.
 - **Pane detection**: Don't use `pgrep -f` to find TUI panes — it's fragile and can match the wrong process (including the caller). Use `tmux select-pane -T <title>` to tag panes, then detect with `list-panes -F '#{pane_title}'`.
 - **"No space for new pane"**: tmux refuses splits when the target pane is too narrow. Consider targeting the largest pane explicitly, or gracefully handle this error.
 - **Alt-screen cleanup**: Always use `tea.WithAltScreen()` so the TUI cleans up properly when the pane is killed externally.
+- **macOS binary quarantine**: `cp` adds `com.apple.provenance` xattr which can cause SIGKILL. Build directly to the install path (`go build -o ~/.local/bin/myapp .`) instead of building then copying.
 
 ---
 
